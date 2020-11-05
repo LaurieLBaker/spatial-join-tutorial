@@ -1,0 +1,199 @@
+---
+title: "Join spatial data with a data frame"
+output: learnr::tutorial
+runtime: shiny_prerendered
+---
+
+```{r setup, include=FALSE}
+library(learnr)
+knitr::opts_chunk$set()
+```
+
+
+## Set up
+
+The packages we'll use for this adventure are:
+
+```{r import_packages, exercise = TRUE, exercise.lines = 10, exercise.eval = TRUE}
+
+library(sf) # working with geographic data
+
+library(tidyverse) # plotting and data wrangling
+
+library(mapview) # plotting and exploring geographic data
+
+library(gapminder) # gapminder data
+```
+
+
+## Reading in the data
+
+
+```{r import_packages2, echo = FALSE, message = FALSE, warning = FALSE}
+
+library(sf) # working with geographic data
+
+library(tidyverse) # plotting and datawrangling
+
+library(mapview) # plotting and exploring geographic data
+
+library(gapminder) # gapminder data
+```
+
+
+### Data frame
+
+The `gapminder` data is read in when the `gapminder` package is loaded. We can prepare the data by filtering out just the data for the continent "Africa".
+
+```{r read_data, exercise = TRUE, exercise.eval = TRUE}
+
+africa_gap <- gapminder %>%
+                  filter(continent == "Africa")
+
+```
+
+We can inspect the data using `head()`, `summary()`, and `names()`
+
+```{r head_data, exercise = TRUE}
+
+head(africa_gap)
+
+```
+
+```{r summary_data, exercise = TRUE}
+
+summary(africa_gap)
+
+```
+
+```{r names_data, exercise = TRUE}
+
+names(africa_gap)
+
+```
+
+
+```{r country_column_quiz, echo = FALSE}
+quiz(
+  question("Which column contains the country name?",
+    answer("continent"),
+    answer("year"),
+    answer("country", correct = TRUE),
+    answer("gdpPercap"),
+    incorrect = "Hint: Look at the head of the data frame or use names(africa_gap) to find out the column names.",
+    allow_retry = TRUE
+  )
+)
+```
+
+### Spatial data
+
+Read in the continent data `africa_map.shp` which contains a subset of data from the `rnaturalearth` package for the continent, Africa. 
+
+```{r read_spatial_data, exercise = TRUE, exercise.eval = TRUE}
+
+africa_map <- st_read("data/africa_map.shp")
+
+```
+
+
+Doublecheck that the class is `sf` using the function `class`. 
+
+```{r check_class, exercise = TRUE, exercise.eval = TRUE}
+
+class(africa_map)
+```
+
+Check the head of the data
+
+
+```{r head_africa_map, exercise=TRUE, exercise.eval = TRUE}
+
+head(africa_map)
+
+```
+
+
+### Exercise 1
+
+```{r quiz, echo = FALSE}
+quiz(
+  question("In which column do you find the spatial information?",
+    answer("country"),
+    answer("iso_a3"),
+    answer("geometry", correct = TRUE),
+    answer("continent"),
+    incorrect = "Hint: Look at the head of the spatial data frame using head(africa_map), which column contains coordinates?",
+    allow_retry = TRUE
+  )
+)
+```
+
+
+### Exercise 2
+
+
+```{r quiz2}
+
+quiz(
+  question("What type of geometry is the spatial file?",
+    answer("point"),
+    answer("line"),
+    answer("polygon"),
+    answer("multipolygon", correct = TRUE),
+    incorrect = "Hint: Look at geometry column of the dataset, what type of spatial data does it report?",
+    allow_retry = TRUE
+  )
+)
+```
+
+### Exercise with Code
+
+*Here's an exercise with some prepopulated code as well as `exercise.lines = 5` to provide a bit more initial room to work.*
+
+Now write a function that adds any two numbers and then call it:
+
+```{r add-function, exercise=TRUE, exercise.lines = 5}
+add <- function() {
+  
+}
+```
+
+## Joining the datasets
+
+### Exercise with Hint
+
+*Here's an exercise where the chunk is pre-evaulated via the `exercise.eval` option (so the user can see the default output we'd like them to customize). We also add a "hint" to the correct solution via the chunk immediate below labeled `print-limit-hint`.*
+
+Modify the following code to limit the number of rows printed to 5:
+
+```{r print-limit, exercise=TRUE, exercise.eval=TRUE}
+mtcars
+```
+
+```{r print-limit-hint}
+head(mtcars)
+```
+
+### Quiz
+
+*You can include any number of single or multiple choice questions as a quiz. Use the `question` function to define a question and the `quiz` function for grouping multiple questions together.*
+
+Some questions to verify that you understand the purposes of various base and recommended R packages:
+
+```{r quiz3}
+quiz(
+  question("Which package contains functions for installing other R packages?",
+    answer("base"),
+    answer("tools"),
+    answer("utils", correct = TRUE),
+    answer("codetools")
+  ),
+  question("Which of the R packages listed below are used to create plots?",
+    answer("lattice", correct = TRUE),
+    answer("tools"),
+    answer("stats"),
+    answer("grid", correct = TRUE)
+  )
+)
+```
