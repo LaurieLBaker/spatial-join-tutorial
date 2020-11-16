@@ -47,4 +47,4 @@ You can try out the tutorial by downloading the learnr tutorial as a package:
 
 install.packages("devtools")
 library(devtools)
-devtools::install_github("afrijoin/join-admin")
+devtools::install_github("afrimapr/afrijoin")
