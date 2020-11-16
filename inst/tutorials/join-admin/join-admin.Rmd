@@ -1,54 +1,234 @@
 ---
 title: "Join spatial data with a data frame"
-output: learnr::tutorial
+output: 
+  learnr::tutorial:
+    allow_skip: true
 runtime: shiny_prerendered
 ---
 
 ```{r setup, include=FALSE}
+
+# To install a package
+#usethis::use_package("<external-package>")
+
+# library to run the tutorial
 library(learnr)
+
+# working with geographic data
+library(sf) 
+
+#plotting and data wrangling
+library(tidyverse) 
+
+# plotting and exploring geographic data
+library(mapview) 
+
+# gapminder data
+library(gapminder) 
+
+#afrilearndata
+library(afrilearndata)
+
+# include leaflet for mapping
+library(leaflet)
+
+# interactive map using tmap
+library(tmap)
+
+# icons
+library(fontawesome)
+
+# tables
+library(kableExtra)
+
 knitr::opts_chunk$set()
 ```
 
+## Introduction
 
-## Set up
+There are usually difficulties in joining data to spatial admin boundaries due to spelling, capitalisation, accents etc. Afrimapr wants to improve that, particularly for users relatively new to these issues.
+
+
+Here we start to develop a checklist identifying code steps that users can work through to aid the joining process.
+
+### **Use-case:** 
+
+* You want to plot data on a map but the data only have names of regions or places. 
+
+* You also can get some spatial data (e.g. `africountries.shp`) that does have the coordinates of the regions or places.
+
+
+```{r tmap_data_sample, eval = TRUE, echo = FALSE, message = FALSE}
+
+tmap_mode("view")
+
+t <-  tm_shape(sfafricountries) +
+      tm_polygons(col = "tan", alpha = 0.2, border.col = "black") +
+      tm_shape(rastafriwpop)  +
+      tm_raster("ppp_2020_1km_Aggregated", palette = terrain.colors(10), style="fisher") +
+      tm_shape(sfafrihway) +
+      tm_lines(col = "red") + 
+      tm_shape(sfafricapitals) +
+      tm_symbols(col = "blue", shape=1, scale = .7 ) + #shape=1 for open circle
+      tm_legend(show = TRUE)
+
+t %>% 
+  tmap_leaflet() %>%
+  leaflet::hideGroup("sfafricapitals") %>%
+  leaflet::hideGroup("ppp_2020_1km_Aggregated") %>%
+  leaflet::hideGroup("sfafrihway") %>%
+  leaflet::hideGroup("rastafriwpop")
+
+```
+
+* The data you have are in a spreadsheet type format and the spatial data are in some kind of GIS format (e.g. .shp).
+
+* To create the map, you need to join the two datasets in order to create your map. This requires identifying the columns with the admin names, checking for misspellings, and joining them together.
+
+    * **Joining your data frame:**
+
+```{r country_names2, eval = TRUE, echo = FALSE, message = FALSE}
+
+africa_gap <- gapminder %>%
+                  filter(continent == "Africa", year == 2007) %>%
+                  select(country, gdpPercap) %>%
+                  head()
+
+africa_gap %>%
+  head()
+
+```
+
+
+  * **To the spatial information:**
+    
+
+```{r geographic_data_sample, eval = TRUE, echo = FALSE, message = FALSE}
+
+sfafricountries <- sf::read_sf(system.file("extdata/africountries.shp", package="afrilearndata"))
+
+sfafricountries_mini <- sfafricountries %>%
+                            select(name_long, geometry) %>%
+                            head()
+
+sfafricountries_mini %>%
+  head()
+```
+
+  * **To create a spatial data frame** that combines the dataset with the spatial information
+
+```{r geographic_data_sample2, eval = TRUE, echo = FALSE, message = FALSE}
+
+sfafricountries_mini %>%
+  left_join(africa_gap, by = c("name_long" = "country")) %>%
+  head()
+
+```
+
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">
+
+### STEPS
+
+1. [**Install and load the relevant libraries**](#setup-link)
+
+2. [**Import the data frame**](#dataframe-link) 
+
+  - Read the data into R as a data.frame (dfdata).
+  - Check that dfdata is a data.frame is a dataframe with class(dfdata).
+  - Identify the column that contains the admin unit information. 
+
+3. [**Import the spatial data**](#spatial-link) 
+
+  - Read in the spatial data to R as a sf object (sfshapes). 
+  - Check that sfshapes is an sf object with class(sfshapes).
+  - Plot sfshapes to check the locations. 
+  - Identify the column that contains the admin unit information. 
+
+
+4. [**Joins: use anti_join to detect mismatches in admin units**](#anti_join-link)
+  - Use an `anti_join` to detect mismatches in the admin units.
+  - Mismatches may occur due to different spellings or missing information.
+
+5. [**Joins: Renaming admin units**](#check_names-link)
+  - Correct any mismatches due to differences in spellings.
+
+6. [**Joins: using left-join to join the datasets**](#left_join-link).
+  - Use a `left_join` to join the data.frame to the spatial data.frame. 
+
+7. [**Plot the data on a map**](#plot_map-link)
+
+</div>
+
+## 1. Set up {#setup-link}
+
+### Installing and Loading the Relevant Libraries
 
 The packages we'll use for this adventure are:
 
-```{r import_packages, exercise = TRUE, exercise.lines = 10, exercise.eval = TRUE}
+```{r import_packages, exercise = TRUE, exercise.eval = FALSE, message = FALSE, warning = FALSE}
 
-library(sf) # working with geographic data
+# working with geographic data
+library(sf) 
 
-library(tidyverse) # plotting and data wrangling
+# data wrangling
+library(dplyr) 
 
-library(mapview) # plotting and exploring geographic data
+# plotting
+library(ggplot2)
 
-library(gapminder) # gapminder data
+# plotting and exploring geographic data
+library(mapview) 
+
+## Data
+library(gapminder) #gapminder data
+
+# spatial data
+library(afrilearndata)
+
+# view the data interactively
+library(tmap)
+
+```
+
+## 2. Importing the data frame {#dataframe-link}
+
+We will be using data from the `gapminder` package by Jenny Bryan. The `gapminder` dataset includes statistics for countries around the world including life expectancy, population, and GDP per capita.
+
+### Preparing the data frame 
+
+The `gapminder` data is automatically read in when the `gapminder` package is loaded. 
+
+We can start by inspecting the data using `head()`
+
+```{r read_gapminder, exercise = TRUE, exercise.eval = TRUE}
+
+head(gapminder)
+
 ```
 
 
-## Reading in the data
+We can prepare the data by filtering out just the data for the continent "Africa" using `filter(continent == "Africa")`. Fill in the blank to filter the data just for the year 2007.
 
-
-```{r import_packages2, echo = FALSE, message = FALSE, warning = FALSE}
-
-library(sf) # working with geographic data
-
-library(tidyverse) # plotting and datawrangling
-
-library(mapview) # plotting and exploring geographic data
-
-library(gapminder) # gapminder data
-```
-
-
-### Data frame
-
-The `gapminder` data is read in when the `gapminder` package is loaded. We can prepare the data by filtering out just the data for the continent "Africa".
-
-```{r read_data, exercise = TRUE, exercise.eval = TRUE}
+```{r filter_gampinder, exercise = TRUE}
 
 africa_gap <- gapminder %>%
-                  filter(continent == "Africa")
+                  filter(continent == "Africa",
+                         year == _____)
+
+```
+
+Hint `r fa(name = "lightbulb-on")`: 2007 is a number and doesn't need quotes "".
+
+
+
+```{r filter_gampinder_prep, echo = FALSE}
+
+africa_gap <- gapminder %>%
+                  filter(continent == "Africa",
+                         year == 2007)
 
 ```
 
@@ -60,11 +240,14 @@ head(africa_gap)
 
 ```
 
+We can look at the range of values and the type of data using summary. What is the mean `gdpPercap`?
+
 ```{r summary_data, exercise = TRUE}
 
 summary(africa_gap)
 
 ```
+We can check the names of the columns (our variables) using `names()`. This is particularly helpful to check the spelling!
 
 ```{r names_data, exercise = TRUE}
 
@@ -75,7 +258,7 @@ names(africa_gap)
 
 ```{r country_column_quiz, echo = FALSE}
 quiz(
-  question("Which column contains the country name?",
+  question("Using the output from the commands head(), summary(), and names() above. Which column contains the country name?",
     answer("continent"),
     answer("year"),
     answer("country", correct = TRUE),
@@ -86,35 +269,124 @@ quiz(
 )
 ```
 
-### Spatial data
+Not all countries are included in the gapminder dataset. Can you find your country there?
 
-Read in the continent data `africa_map.shp` which contains a subset of data from the `rnaturalearth` package for the continent, Africa. 
+```{r mycountry, exercise = TRUE}
 
-```{r read_spatial_data, exercise = TRUE, exercise.eval = TRUE}
+africa_gap %>%
+  filter(country == "_______")
 
-africa_map <- st_read("data/africa_map.shp")
+```
+
+Having trouble finding it? Maybe it is spelled differently in the dataset. We can search for it by looking at all the **distinct** countries in the dataset using the following:
+
+```{r mycountry2, exercise = TRUE}
+
+africa_gap %>%
+  distinct(country)
+
+```
+
+## 3. Importing the spatial data {#spatial-link}
+
+### Preparing the spatial data
+
+
+The spatial data we will use is contained in the `afrilearndata` package. In this tutorial we'll be working with the country-level spatial data `sfafricountries`.
+
+```{r tmap_data, eval = TRUE, echo = FALSE, message = FALSE}
+
+tmap_mode("view")
+
+t <-  tm_shape(sfafricountries) +
+      tm_polygons(col = "tan", alpha = 0.2, border.col = "black") +
+      tm_shape(rastafriwpop)  +
+      tm_raster("ppp_2020_1km_Aggregated", palette = terrain.colors(10), style="fisher") +
+      tm_shape(sfafrihway) +
+      tm_lines(col = "red") + 
+      tm_shape(sfafricapitals) +
+      tm_symbols(col = "blue", shape=1, scale = .7 ) + #shape=1 for open circle
+      tm_legend(show = TRUE)
+
+t %>% 
+  tmap_leaflet() %>%
+  leaflet::hideGroup("sfafricapitals") %>%
+  leaflet::hideGroup("ppp_2020_1km_Aggregated") %>%
+  leaflet::hideGroup("sfafrihway") %>%
+  leaflet::hideGroup("rastafriwpop")
+
+```
+
+* Click the layers symbol `r fa(name = "layer-group")` on the map to view the other datasets contained in `afrilearndata`. 
+
+* `r fa(name = "question-circle")` Can you guess which layers represent point, polygon, line, and raster data?
+
+Read in the Africa country data `africountries.shp` from the `afrilearndata` package. This data is subset from the `rnaturalearth` package.
+
+```{r read_spatial_data, exercise = TRUE, exercise.eval = TRUE, exercise.setup = "import_packages"}
+
+sfafricountries <- sf::read_sf(system.file("extdata/africountries.shp", package="afrilearndata"))
 
 ```
 
 
-Doublecheck that the class is `sf` using the function `class`. 
+#### Visualising the spatial data
 
-```{r check_class, exercise = TRUE, exercise.eval = TRUE}
-
-class(africa_map)
-```
-
-Check the head of the data
+You can run a quick check to see where the data is using plot.
 
 
-```{r head_africa_map, exercise=TRUE, exercise.eval = TRUE}
+```{r map_plot, exercise = TRUE}
 
-head(africa_map)
+plot(sfafricountries)
 
 ```
 
+We can also explore a single variable on its own. Let's take a look at pop_est. 
 
-### Exercise 1
+
+```{r map_plot_pop_est, exercise = TRUE}
+
+plot(sfafricountries["pop_est"])
+
+```
+
+* `r fa(name = "question-circle")`  Which country has the highest population?
+
+
+### Simple features (sf) spatial dataframe 
+
+
+#### Try exploring the data, change the code to check the **head** of the data instead of the tail. 
+
+
+```{r head_spatial_data, exercise = TRUE, exercise.eval = FALSE}
+
+tail(sfafricountries)
+
+```
+
+
+* `r fa(name = "question-circle")` What is the name of the first country in the dataset?
+
+
+#### Doublecheck that the class is `sf` using the function `class`. 
+
+```{r check_class, exercise = TRUE, exercise.eval = TRUE, exercise.setup = "import_packages"}
+
+class(sfafricountries)
+
+```
+
+#### Check the names of the columns using `names()`
+
+```{r check_names, exercise = TRUE, exercise.eval = TRUE, exercise.setup = "import_packages"}
+
+names(sfafricountries)
+
+```
+
+
+### Exercises
 
 ```{r quiz, echo = FALSE}
 quiz(
@@ -125,17 +397,7 @@ quiz(
     answer("continent"),
     incorrect = "Hint: Look at the head of the spatial data frame using head(africa_map), which column contains coordinates?",
     allow_retry = TRUE
-  )
-)
-```
-
-
-### Exercise 2
-
-
-```{r quiz2}
-
-quiz(
+  ),
   question("What type of geometry is the spatial file?",
     answer("point"),
     answer("line"),
@@ -143,57 +405,329 @@ quiz(
     answer("multipolygon", correct = TRUE),
     incorrect = "Hint: Look at geometry column of the dataset, what type of spatial data does it report?",
     allow_retry = TRUE
-  )
+  )  
 )
 ```
 
-### Exercise with Code
 
-*Here's an exercise with some prepopulated code as well as `exercise.lines = 5` to provide a bit more initial room to work.*
+## 4. Joins: using anti-join to detect mismatches {#anti_join-link}
 
-Now write a function that adds any two numbers and then call it:
+### Joins: a toy example
 
-```{r add-function, exercise=TRUE, exercise.lines = 5}
-add <- function() {
+```{r join_example_df, echo = FALSE}
+
+national_animals <- data.frame(country = c("Democratic Republic of the Congo", "Gabon", "Indonesia","Scotland", "Uganda", "Namibia", "Papua New Guinea", "Mozambique", "Wales"), animal = c("Okapi", "Black panther", "Komodo dragon", "Unicorn", "Grey-crowned crane", "Oryx", "Dugong", "African Elephant", "Dragon"))
+
+# scientific_names <- data.frame(common_name = c("Okapi", "Black Panther", "Atlantic Bluefin Tuna", "American Lobster", "Oryx"), scientific_name = c("Okapia johnstoni", "Panthera pardus", "Thunnus thynnus", "Homerus americanus", "Oryx dammah"))
+
+
+football_mascots <- data.frame(country = c("Democratic Republic of the Congo", "Gabon", "Uganda", "Sudan", "Botswana", "Mozambique"), mascot = c("The Leopards", "The Panthers", "The Cranes", "The Nile Crocodiles", "The Zebras", "The Mambas"))
+```
+
+Let's first learn about joins using two toy datasets containing information about `national_animals` and `football_mascots`. 
+
+* `r fa(name = "hippo")` `national_animals` contains a range of countries from around the world and their national animals.
+
+```{r national_animals, echo = FALSE}
+
+national_animals %>%
+  kable() %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 
+  scroll_box(width = "80", height = "200px")
+
+```
+
+* Can you spot which countries' national animals are not real animals `r fa(name = "dragon")` ?
+
+* `football_mascots` contains a subset of national football team mascots `r fa(name = "paw")` from African countries. 
+
+
+```{r football_mascots, echo = FALSE}
+
+football_mascots %>%
+    kable() %>% 
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed")) %>% 
+  scroll_box(width = "80", height = "200px")
+
+```
+
+
+**Aim:** Now we wish to join our `football_mascots` dataset up with our `national_animals` so that we can compare the national animal with the mascot. 
+
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">
+
+### `r fa(name = "hat-wizard")` Notes on Joins
+
+* Joining columns do not have to have the same name
+* Rows do not have to be in the same order
+* Data columns can contain repeated values
+* Join columns (animal and common_name) must not contain repeated values
+* Values that are identical will be joined.
+
+</div>
+
+
+To join the two datasets we can use a `left_join`, this will join the `national_animals` dataset to the `football_mascots` dataset.
+
+
+```{r left_join, exercise = TRUE}
+
+
+football_mascot_vs_animal <- left_join(x = football_mascots, y = national_animals, by = "country")
+
+football_mascot_vs_animal
+
+
+```
+
+All values that are identical will be joined, i.e. countries that matched. 
+
+We can check which rows did not match using an `anti_join`
+
+```{r anti_join, exercise = TRUE}
+
+
+non_matches_mascot_vs_animal <- anti_join(x = football_mascots, y = national_animals, by = "country")
+
+non_matches_mascot_vs_animal
+
+
+```
+
+We can see all the data using a `full_join`
+
+```{r full_join, exercise = TRUE}
+
+
+non_matches_mascot_vs_animal <- full_join(x = football_mascots, y = national_animals, by = "country")
+
+non_matches_mascot_vs_animal
+
+
+```
+
+
+
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">
+
+### `r fa(name = "hat-wizard")` Types of Joins
+
+* left_join()
+* right_join()
+* full_join()
+* inner_join()
+* anti_join()
+
+</div>
+
+### Using an anti_join to detect mismatches
+
+You will now have identified that the country names are in the `country` column in `africa_gap` and the `name_long` column in `sfafricountries`.
+
+We can check how many countries are in each dataset using `distinct` and `count`. 
+
+
+
+```{r unique_africa_df_names, exercise = TRUE}
+
+africa_gap %>%
+  select(country) %>%
+  distinct(country) %>%
+  count()
+
+```
+* `r fa(name = "question-circle")` How many unique countries are there in the dataset?
+
+
+```{r unique_africa_map_names, exercise = TRUE}
+
+sfafricountries %>%
+  select(name_long) %>%
+  distinct(name_long) %>%
+  count()
+
+```
+
+
+* `r fa(name = "question-circle")` How many unique countries are there in the simple features data frame?
+
+
+***
+
+We can see that the data.frame and the spatial dataframe have a different number of countries! 
+
+Before we join the datasets, we can use an `anti_join` to find out what countries are missing, and which ones do not match!
+
+```{r anti_join_ex, exercise = TRUE}
+
+
+mismatch_df_spatial <- dplyr::anti_join(x = africa_gap, 
+                                        y = sfafricountries, 
+                                        by = c("country" = "name_long")
+                                        )
+
+mismatch_df_spatial %>%
+  select(country)
   
-}
 ```
 
-## Joining the datasets
 
-### Exercise with Hint
+```{r spatial_anti_join, exercise = TRUE}
 
-*Here's an exercise where the chunk is pre-evaulated via the `exercise.eval` option (so the user can see the default output we'd like them to customize). We also add a "hint" to the correct solution via the chunk immediate below labeled `print-limit-hint`.*
+mismatch_spatial_df <- dplyr::anti_join(x = sfafricountries, 
+                                        y = africa_gap, 
+                                        by = c("name_long" = "country")
+                                        )
 
-Modify the following code to limit the number of rows printed to 5:
+mismatch_spatial_df %>%
+  select(name_long)
 
-```{r print-limit, exercise=TRUE, exercise.eval=TRUE}
-mtcars
+  
 ```
 
-```{r print-limit-hint}
-head(mtcars)
+From this we can see that there are a couple of things happening.
+
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">
+
+1. **Spelling** `r fa(name = "spell-check")`  Some countries are spelled differently in the two datasets:
+
+    - *Congo, Dem. Rep.* in `africa_gap` is *Democratic Republic of the Congo* in `sfafricountries`
+    - *Cote d'Ivoire* in `africa_gap` is *Côte d'Ivoire* in `sfafricountries`
+    - *Gambia* in `africa_gap` is *The Gambia* in `sfafricountries`
+    - *Congo, Rep.* in `africa_gap` is *Republic of Congo* in `sfafricountries`
+  
+2. **Countries missing from spatial data.frame** `r fa(name = "globe-africa")`  There are several countries in `africa_gap`  that are not in `sfafricountries`!
+
+    - Islands: Comoros, Mauritius, Reunion, Sao Tome and Principe. 
+  
+3. **Countries missing from data.frame** `r fa(name = "flag")` There are a several countries in `sfafricountries` that are not present in `africa_gap`.
+
+    - Western Sahara
+    - Somaliland
+    - South Sudan
+
+</div>
+
+
+## 5. Joins: Renaming placenames {#check_names-link}
+
+At this stage we have a couple of decisions to make based on our discoveries from the `anti_join`. 
+
+1. Some countries are spelled differently in the two datasets:
+  - We can change the country names so that they match using `recode` with `mutate`.
+  - `recode` takes the form "old name" = "new name".
+
+
+<style>
+div.blue { background-color:#e6f0ff; border-radius: 5px; padding: 20px;}
+</style>
+<div class = "blue">  
+
+### Which names should be changed? 
+  
+
+* The names need to match between the two datasets in order for the join to work.
+
+* As to what you choose, that will depend on what names you ultimately want to include on the map or you can look to official standard names for the region/countries you are looking at. 
+
+* Depending on the names you wish to have, you can change either dataset or both!
+
+</div>
+
+
+2. Changing the names
+
+| africa_gap     | sfafricountries | final join |
+| :---        |    :---   |          :--- |
+|  Congo, Dem. Rep.     | **Democratic Republic of the Congo** | Democratic Republic of the Congo   |
+| Cote d'Ivoire  | **Côte d'Ivoire**        | Côte d'Ivoire     |
+| **Gambia**      | The Gambia       | Gambia   |
+| Congo, Rep.   | **Republic of Congo**     | Republic of Congo      |
+
+
+
+    - *Congo, Dem. Rep.* in `africa_gap` is *Democratic Republic of the Congo* in `sfafricountries`
+    - *Cote d'Ivoire* in `africa_gap` is *Côte d'Ivoire* in `sfafricountries`
+    - *Gambia* in `africa_gap` is *The Gambia* in `sfafricountries`
+    - *Congo, Rep.* in `africa_gap` is *Republic of Congo* in `sfafricountries`
+  
+2. Changing the names
+  - We can change the country names so that they match using `recode` with `mutate`.
+  - From the `anti_join`
+  - `recode` takes the form "old name" = "new name".
+
+  
+```{r recode_africa_gap, exercise = TRUE}
+
+
+africa_gap <- africa_gap %>%
+                  mutate(country = recode(country,
+                                          "Congo, Dem. Rep." = "Democratic Republic of the Congo",  
+                                          "Congo, Rep." = "Republic of Congo",
+                                          "Cote d'Ivoire" = "Côte d'Ivoire"))
+
 ```
 
-### Quiz
 
-*You can include any number of single or multiple choice questions as a quiz. Use the `question` function to define a question and the `quiz` function for grouping multiple questions together.*
+  - Note that we are then saving the changes we make back into the original data.frame using the assignment arrow `africa_gap`.
 
-Some questions to verify that you understand the purposes of various base and recommended R packages:
+Fill in the blank to recode the country *The Gambia* in `sfafricountries` to *Gambia*.
 
-```{r quiz3}
-quiz(
-  question("Which package contains functions for installing other R packages?",
-    answer("base"),
-    answer("tools"),
-    answer("utils", correct = TRUE),
-    answer("codetools")
-  ),
-  question("Which of the R packages listed below are used to create plots?",
-    answer("lattice", correct = TRUE),
-    answer("tools"),
-    answer("stats"),
-    answer("grid", correct = TRUE)
-  )
-)
+
+```{r recode_sfafricountries, exercise = TRUE}
+
+
+sfafricountries <- sfafricountries %>%
+                      mutate(name_long = recode(name_long,
+                                          "The Gambia" = "_______"))
+
 ```
+
+
+Let's run our `anti_join` again to see what we still need to change. 
+
+
+```{r africa_gap_anti_join2, exercise = TRUE}
+
+
+mismatch_df_spatial <- dplyr::anti_join(x = africa_gap, 
+                                        y = sfafricountries, 
+                                        by = c("country" = "name_long")
+                                        )
+
+mismatch_df_spatial %>%
+      select(country)
+```
+
+
+```{r spatial_anti_join_ex2, exercise = TRUE}
+
+mismatch_spatial_df <- dplyr::anti_join(x = sfafricountries, 
+                                        y = africa_gap, 
+                                        by = c("name_long" = "country")
+                                        )
+
+mismatch_spatial_df %>%
+  select(name_long)
+
+  
+```
+
+
+## 6. Joins: using left-join to join the datasets {#left_join-link}
+
+### Joining the datasets
+
+Like joining any two datasets, in order to join a spatial and a dataframe, we need to first identify where to find the shared information to match the data together.
+
+## 7. **Plot the data on a map** {#plot-link}
+
