@@ -7,9 +7,7 @@ Afrimapr wants to improve that, particularly for users relatively new to these i
 
 Here we start to develop a checklist identifying code steps that users can work through to aid the joining process.
 
-The use-case is that you want to plot data on a map but the data only have names of regions or places. You also can get some spatial data that does have the coordinates of the regions or places. The data are in a spreadsheet type format and the spatial data are in some kind of GIS format like a shapefile.
-
-STEPS
+**Use-case** is that you want to plot data on a map but the data only have names of regions or places. You also can get some spatial data that does have the coordinates of the regions or places. The data are in a spreadsheet type format and the spatial data are in some kind of GIS format like a shapefile.
 
 ### STEPS
 
