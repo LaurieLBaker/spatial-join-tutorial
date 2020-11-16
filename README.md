@@ -1,4 +1,4 @@
-# spatial-join-tutorial
+# join-admin: a spatial admin joining tutorial
 
 
 There are usually difficulties in joining data to admin boundaries due to spelling, capitalisation, accents etc..
