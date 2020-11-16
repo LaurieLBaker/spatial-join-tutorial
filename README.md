@@ -46,5 +46,7 @@ You want to plot data on a map but the data only have names of regions or places
 You can try out the tutorial by downloading the learnr tutorial as a package:
 
 install.packages("devtools")
+
 library(devtools)
+
 devtools::install_github("afrimapr/afrijoin")
