@@ -22,7 +22,8 @@ Imports:
     mapview,
     gapminder,
     tmap,
-    kableExtra
+    kableExtra,
+    viridisLite
 Remotes:
     fontawesome,
     afrilearndata
